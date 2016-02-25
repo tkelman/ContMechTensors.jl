@@ -75,7 +75,7 @@ julia> dcontract(A,B)
 
 ### Single contraction (dot products)
 
-Single contractions or scalar products of a tensor with order `n` and a tensor with order `m` gives a tensor with order `m + n - 2`. The symbol `⋅` is overloaded for scalar products but `dot(A, B)` can also be used. To store the result in a preallocated tensor, use `otimes!(C, A, B)`. Since dot products between symmetric tensors does not give a symmetric result it is not implemented.
+Single contractions or scalar products of a tensor with order `n` and a tensor with order `m` gives a tensor with order `m + n - 2`. The symbol `⋅` is overloaded for scalar products but `dot(A, B)` can also be used. To store the result in a preallocated tensor, use `dot!(C, A, B)`. Since dot products between symmetric tensors does not give a symmetric result it is not implemented.
 
 ```jl
 julia> A = rand(Tensor{2, 2})
