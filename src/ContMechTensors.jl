@@ -6,7 +6,7 @@ include("utilities.jl")
 
 immutable InternalError <: Exception end
 
-export SymmetricTensor, Tensor, Vec
+export SymmetricTensor, Tensor, Vec, SecondOrderTensor, FourthOrderTensor
 
 export otimes, otimes_unsym, ⊗, dcontract, dev, dev!
 export extract_components, load_components!, symmetrize, symmetrize!
@@ -299,6 +299,15 @@ function Base.copy!(t1::AllTensors, t2::AllTensors)
 end
 
 Base.copy(t::AllTensors) = copy!(similar(t), t)
+
+
+function Base.convert{dim}(::Type{SymmetricTensor{2, dim}}, t::Tensor{2, dim})
+    t_sym = zero(SymmetricTensor{2, dim})
+    @inbounds for i in 1:dim, j in 1:i
+        t_sym[i,j] = 0.5 * (t[i,j] + t[j,i])
+    end
+    return t_sym
+end
 
 
 ###############
