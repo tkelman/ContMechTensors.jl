@@ -8,6 +8,7 @@ const T = Float32
 
 for dim in (1,2,3)
     for order in (1,2,4)
+        println(dim, " ", order)
         n_sym = n_independent_components(dim, true)
         n = n_independent_components(dim, false)
 
@@ -32,12 +33,12 @@ for dim in (1,2,3)
 
 
         t = @inferred Tensor{order, dim}(copy(v))
-        @test get_data(t) == v
+        @test get_data(t) == vec(v)
         @test_throws ArgumentError t = Tensor{order, dim}(v_err)
 
         if order != 1
             t_sym =  @inferred SymmetricTensor{order, dim}(copy(v_sym))
-            @test get_data(t_sym) == v_sym
+            @test get_data(t_sym) == vec(v_sym)
             @test_throws ArgumentError t_sym = SymmetricTensor{order, dim}(v_sym_err)
         end
 
@@ -326,8 +327,8 @@ for dim in (1,2,3)
         else
             M = div(order, 2)
         end
-        tens = Tensor{order, dim, T, M}
-        tens_wide = Tensor{order, dim, WIDE_T, M}
+        tens = Tensor{order, dim, T}
+        tens_wide = Tensor{order, dim, WIDE_T}
 
         @test promote_type(tens, tens) == tens
         @test promote_type(tens_wide, tens) == tens_wide
@@ -338,8 +339,8 @@ for dim in (1,2,3)
         @test typeof(A + B) == tens_wide
 
         if order != 1
-            sym = SymmetricTensor{order, dim, T, M}
-            sym_wide = SymmetricTensor{order, dim, WIDE_T, M}
+            sym = SymmetricTensor{order, dim, T}
+            sym_wide = SymmetricTensor{order, dim, WIDE_T}
 
             @test promote_type(sym, sym) == sym
             @test promote_type(sym_wide, sym_wide) == sym_wide

@@ -63,11 +63,9 @@ end
 # norm #
 ########
 @gen_code function Base.norm{dim, T}(S::SymmetricTensor{4, dim, T})
-    idx(i,j) = compute_index(get_lower_order_tensor(S), i, j)
-    @code :(data = get_data(S))
     @code :(s = zero(T))
     for k in 1:dim, l in 1:k, i in 1:dim, j in 1:i
-        @code :(@inbounds v = data[$(idx(i,j)), $(idx(k,l))])
+        @code :(@inbounds v = S[$i,$j,$k,$l])
         if i == j && k == l
              @code :(s += v*v)
         elseif i == j || k == l
@@ -85,11 +83,13 @@ end
 ################
 function otimes{dim, T1, T2}(S1::SymmetricTensor{2, dim, T1}, S2::SymmetricTensor{2, dim, T2})
     Tv = typeof(zero(T1) * zero(T2))
-    S = SymmetricTensor{4, dim, Tv, 2}(zeros(Tv, length(get_data(S1)), length(get_data(S2))))
+    S = SymmetricTensor{4, dim, Tv}(zeros(Tv, length(get_data(S1))^2))
     otimes!(S, S1, S2)
 end
 
 function otimes!{dim}(S::SymmetricTensor{4, dim}, S1::SymmetricTensor{2, dim}, S2::SymmetricTensor{2, dim})
-    A_mul_Bt!(get_data(S), get_data(S1), get_data(S2))
+    n = n_components(SymmetricTensor{2, dim})
+    data_S_mat = reshape(get_data(S), n, n)
+    A_mul_Bt!(data_S_mat, get_data(S1), get_data(S2))
     return S
 end

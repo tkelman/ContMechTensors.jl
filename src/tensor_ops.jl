@@ -6,7 +6,8 @@ function dcontract{dim}(S1::Tensor{2, dim}, S2::Tensor{2, dim})
 end
 
 function dcontract!{dim, T, T1, T2}(S::Tensor{4, dim, T}, S1::Tensor{4, dim, T1}, S2::Tensor{4, dim, T2})
-    A_mul_B!(get_data(S), get_data(S1), get_data(S2))
+    n = n_components(Tensor{2, dim})
+    A_mul_B!(reshape(get_data(S),n,n), reshape(get_data(S1),n,n), reshape(get_data(S2),n,n))
     return S
 end
 
@@ -21,7 +22,8 @@ function dcontract{dim, T1, T2}(S1::Tensor{4, dim, T1}, S2::Tensor{2, dim, T2})
 end
 
 function dcontract!{dim}(S::Tensor{2, dim}, S1::Tensor{4, dim}, S2::Tensor{2, dim})
-    A_mul_B!(get_data(S), get_data(S1), get_data(S2))
+    n = n_components(Tensor{2, dim})
+    A_mul_B!(get_data(S), reshape(get_data(S1),n,n), get_data(S2))
     return S
 end
 
@@ -31,7 +33,8 @@ function dcontract{dim, T1, T2}(S1::Tensor{2, dim, T1}, S2::Tensor{4, dim, T2})
 end
 
 function dcontract!{dim}(S::Tensor{2, dim}, S1::Tensor{2, dim}, S2::Tensor{4, dim})
-    At_mul_B!(get_data(S), get_data(S2), get_data(S1))
+    n = n_components(Tensor{2, dim})
+    At_mul_B!(get_data(S), reshape(get_data(S2),n,n), get_data(S1))
     return S
 end
 
@@ -50,24 +53,24 @@ Base.norm(S::Tensor{4}) = sqrt(sumabs2(get_data(S)))
 ################
 function otimes{dim, T1, T2}(S1::Tensor{2, dim, T1}, S2::Tensor{2, dim, T2})
     Tv = typeof(zero(T1) * zero(T2))
-    S = Tensor{4, dim, Tv, 2}(zeros(Tv, length(get_data(S1)), length(get_data(S2))))
+    S = Tensor{4, dim, Tv}(zeros(Tv, dim^4))
     otimes!(S, S1, S2)
 end
 
 function otimes!{dim}(S::Tensor{4, dim}, S1::Tensor{2, dim}, S2::Tensor{2, dim})
-    A_mul_Bt!(get_data(S), get_data(S1), get_data(S2))
+    A_mul_Bt!(reshape(get_data(S), dim^2, dim^2), get_data(S1), get_data(S2))
     return S
 end
 
 function otimes{dim, T1, T2}(v1::Vec{dim, T1}, v2::Vec{dim, T2})
     Tv = typeof(zero(T1) * zero(T2))
     n = n_independent_components(dim, false)
-    S = Tensor{2, dim, Tv, 1}(zeros(Tv, n))
+    S = Tensor{2, dim, Tv}(zeros(Tv, n))
     otimes!(S, v1, v2)
 end
 
 @gen_code function otimes!{dim}(S::Tensor{2, dim}, v1::Vec{dim}, v2::Vec{dim})
-    idx(i,j) = compute_index(S, i, j)
+    idx(i,j) = compute_index(Tensor{2, dim}, i, j)
     @code :(data = get_data(S))
     for i = 1:dim, j = 1:dim
         @code :(@inbounds data[$(idx(i,j))] = v1[$i] * v2[$j])
@@ -140,35 +143,33 @@ end
 #########
 # Trace #
 #########
-@gen_code function LinAlg.trace{dim, T}(S::AllTensors{dim, T})
-    idx(i,j) = compute_index(get_lower_order_tensor(S), i, j)
-    @code :(s = zero(T))
-    @code :(v = get_data(S))
+function LinAlg.trace{dim, T}(S::SecondOrderTensor{dim, T})
+    s = zero(T)
     for i = 1:dim
-        if S <: SecondOrderTensor
-            @code :(@inbounds s += v[$(idx(i,i))])
-        elseif S <: FourthOrderTensor
-            @code :(@inbounds s += v[$(idx(i,i)), $(idx(i,i))])
-        end
+        @inbounds s += S[i,i]
     end
-    @code :(return s)
+    return s
+end
+
+function LinAlg.trace{dim, T}(S::FourthOrderTensor{dim, T})
+    s = zero(T)
+    for i = 1:dim
+        @inbounds s += S[i,i,i,i]
+    end
+    return s
 end
 
 
 ############
 # Deviator #
 ############
-@gen_code function dev!{dim}(S::SecondOrderTensor{dim}, S1::SecondOrderTensor{dim})
-    idx(i,j) = compute_index(S, i, j)
-    @code :(copy!(S, S1))
-    @code :(vol = mean(S1))
-    @code :(data = get_data(S))
-     for i = 1:dim, j = 1:dim
-        if i == j
-            @code :(data[$(idx(i,j))] -= vol)
-        end
+function dev!{dim}(S::SecondOrderTensor{dim}, S1::SecondOrderTensor{dim})
+    copy!(S, S1)
+    vol = mean(S1)
+     for i = 1:dim
+        @inbounds S[i,i] -= vol
     end
-    @code :(return  S)
+    return S
 end
 
 dev(S::SecondOrderTensor) = dev!(similar(S), S)
@@ -184,7 +185,7 @@ Base.mean{dim}(S::SecondOrderTensor{dim}) = trace(S) / dim
 # Determinant #
 ###############
 @gen_code function Base.det{dim, T}(S::SecondOrderTensor{dim, T})
-    idx(i,j) = compute_index(S, i, j)
+    idx(i,j) = compute_index(get_lower_order_tensor(S), i, j)
     @code :(v = get_data(S))
     if dim == 1
         @code :(@inbounds d = v[1])
@@ -204,7 +205,7 @@ end
 ###########
 
 @gen_code function Base.inv{dim, T}(t::SecondOrderTensor{dim, T})
-    idx(i,j) = compute_index(t, i, j)
+    idx(i,j) = compute_index(get_lower_order_tensor(t), i, j)
     @code :(d = det(t))
     @code :(v = get_data(t))
     @code :(t_inv = similar(t))
@@ -238,7 +239,8 @@ end
 
 
 function Base.inv{dim, T}(t::FourthOrderTensor{dim, T})
-    typeof(t)(inv(get_data(t)))
+    n = n_components(get_lower_order_tensor(typeof(t)))
+    typeof(t)(vec(inv(reshape(get_data(t), n, n))))
 end
 
 
