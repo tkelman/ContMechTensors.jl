@@ -9,7 +9,7 @@ immutable InternalError <: Exception end
 export SymmetricTensor, Tensor, Vec, SecondOrderTensor, FourthOrderTensor
 
 export otimes, otimes_unsym, ⊗, dcontract, dev, dev!
-export extract_components, load_components!, symmetrize, symmetrize!
+export extract_components, load_components!, symmetrize, symmetrize!, inv!
 
 #########
 # Types #

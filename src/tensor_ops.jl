@@ -204,11 +204,12 @@ end
 # Inverse #
 ###########
 
-@gen_code function Base.inv{dim, T}(t::SecondOrderTensor{dim, T})
+Base.inv{dim, T}(t::SecondOrderTensor{dim, T}) = inv!(similar(t), t)
+
+@gen_code function inv!{dim, T}(t_inv::SecondOrderTensor{dim, T}, t::SecondOrderTensor{dim, T})
     idx(i,j) = compute_index(get_lower_order_tensor(t), i, j)
     @code :(d = det(t))
     @code :(v = get_data(t))
-    @code :(t_inv = similar(t))
     @code :(v_inv = get_data(t_inv))
     if dim == 1
         @code :(@inbounds v_inv[1] = 1/d)
